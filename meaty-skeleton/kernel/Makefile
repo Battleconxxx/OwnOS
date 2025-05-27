@@ -7,6 +7,10 @@ CPPFLAGS?=
 LDFLAGS?=
 LIBS?=
 
+#interrupts stuff
+AS=nasm
+ASFLAGS=-f elf
+
 DESTDIR?=
 PREFIX?=/usr/local
 EXEC_PREFIX?=$(PREFIX)
@@ -32,7 +36,10 @@ LIBS:=$(LIBS) $(KERNEL_ARCH_LIBS)
 KERNEL_OBJS=\
 $(KERNEL_ARCH_OBJS) \
 kernel/kernel.o \
-memory/memory.o
+memory/memory.o \
+interrupts/interrupts.o \
+interrupts/idt.o \
+interrupts/isr.o
 
 OBJS=\
 $(ARCHDIR)/crti.o \
@@ -69,6 +76,14 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 
 .S.o:
 	$(CC) -m32 -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
+
+#interrupts compiling
+interrupts/idt.o: interrupts/idt.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
+interrupts/isr.o: interrupts/isr.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
 
 clean:
 	rm -f myos.kernel
