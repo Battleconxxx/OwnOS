@@ -1,9 +1,10 @@
-#include <stdio.h>
-
+#include <kernel/stdio.h>
 #include <kernel/tty.h>
+#include <kernel/memory.h>
 
-void kernel_main(void) {
+
+void kernel_main(multiboot_info_t* mbi) {
 	terminal_initialize();
-	printf("Hello, kernel World!\n");
-	printf("Decimal: %d, Hex: %x, Char: %c, String: %s\n", 123, 123, 'A', "Hello");
+	printf("Hello, kernel World!123\n %s %c","Welcome to Sudhan Operating System ", ' ');
+	parse_memory_map(mbi);
 }

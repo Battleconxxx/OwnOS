@@ -1,0 +1,4 @@
+export PREFIX="$HOME/cibiz/CrossCompiler/"          
+export TARGET=i686-elf
+export PATH="$PREFIX/bin:$PATH"
+

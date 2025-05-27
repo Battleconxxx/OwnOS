@@ -1,8 +1,8 @@
-DEFAULT_HOST!=../default-host.sh
-HOST?=DEFAULT_HOST
-HOSTARCH!=../target-triplet-to-arch.sh $(HOST)
+DEFAULT_HOST := $(shell ../default-host.sh)
+HOST ?= $(DEFAULT_HOST)
+HOSTARCH := $(shell ../target-triplet-to-arch.sh $(HOST))
 
-CFLAGS?=-O2 -g
+CFLAGS?=-m32 -O2 -g
 CPPFLAGS?=
 LDFLAGS?=
 LIBS?=
@@ -12,10 +12,11 @@ PREFIX?=/usr/local
 EXEC_PREFIX?=$(PREFIX)
 BOOTDIR?=$(EXEC_PREFIX)/boot
 INCLUDEDIR?=$(PREFIX)/include
+LIBC_OBJS ?=
 
 CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra
-CPPFLAGS:=$(CPPFLAGS) -D__is_kernel -Iinclude
-LDFLAGS:=$(LDFLAGS)
+CPPFLAGS:=$(CPPFLAGS) -D__is_kernel -Iinclude -I../libc/include
+LDFLAGS:=$(LDFLAGS) -L../libc
 LIBS:=$(LIBS) -nostdlib -lk -lgcc
 
 ARCHDIR=arch/$(HOSTARCH)
@@ -27,25 +28,29 @@ CPPFLAGS:=$(CPPFLAGS) $(KERNEL_ARCH_CPPFLAGS)
 LDFLAGS:=$(LDFLAGS) $(KERNEL_ARCH_LDFLAGS)
 LIBS:=$(LIBS) $(KERNEL_ARCH_LIBS)
 
+
 KERNEL_OBJS=\
 $(KERNEL_ARCH_OBJS) \
 kernel/kernel.o \
+memory/memory.o
 
 OBJS=\
 $(ARCHDIR)/crti.o \
 $(ARCHDIR)/crtbegin.o \
 $(KERNEL_OBJS) \
+$(LIBC_OBJS) \
 $(ARCHDIR)/crtend.o \
-$(ARCHDIR)/crtn.o \
+$(ARCHDIR)/crtn.o
 
 LINK_LIST=\
 $(LDFLAGS) \
 $(ARCHDIR)/crti.o \
 $(ARCHDIR)/crtbegin.o \
 $(KERNEL_OBJS) \
+$(LIBC_OBJS) \
 $(LIBS) \
 $(ARCHDIR)/crtend.o \
-$(ARCHDIR)/crtn.o \
+$(ARCHDIR)/crtn.o
 
 .PHONY: all clean install install-headers install-kernel
 .SUFFIXES: .o .c .S
@@ -63,7 +68,7 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
 
 .S.o:
-	$(CC) -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
+	$(CC) -m32 -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
 clean:
 	rm -f myos.kernel

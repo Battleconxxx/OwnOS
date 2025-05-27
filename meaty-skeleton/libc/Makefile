@@ -1,8 +1,8 @@
 DEFAULT_HOST!=../default-host.sh
-HOST?=DEFAULT_HOST
+HOST?=$(DEFAULT_HOST)
 HOSTARCH!=../target-triplet-to-arch.sh $(HOST)
 
-CFLAGS?=-O2 -g
+CFLAGS?=-m32 -O2 -g
 CPPFLAGS?=
 LDFLAGS?=
 LIBS?=
@@ -15,8 +15,8 @@ LIBDIR?=$(EXEC_PREFIX)/lib
 
 CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra
 CPPFLAGS:=$(CPPFLAGS) -D__is_libc -Iinclude
-LIBK_CFLAGS:=$(CFLAGS)
-LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk
+LIBK_CFLAGS:=$(CFLAGS) 
+LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk -I../kernel/include
 
 ARCHDIR=arch/$(HOSTARCH)
 

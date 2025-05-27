@@ -57,3 +57,56 @@ void terminal_writestring(const char* data) {
 	terminal_write(data, strlen(data));
 }
 
+void terminal_write_dec(int num) {
+    char buffer[12]; // Enough for "-2147483648"
+    int i = 0;
+    
+    // Special case for INT_MIN
+    if (num == -2147483648) {
+        terminal_writestring("-2147483648");
+        return;
+    }
+
+    if (num < 0) {
+        terminal_putchar('-');
+        num = -num;
+    }
+
+    // Build the number in reverse
+    while (num > 0) {
+        buffer[i++] = '0' + (num % 10);
+        num /= 10;
+    }
+
+    if (i == 0) {
+        buffer[i++] = '0'; // Handle num == 0
+    }
+
+    // Print in reverse order
+    while (i--) {
+        terminal_putchar(buffer[i]);
+    }
+}
+
+void terminal_write_hex(unsigned int num){
+    char buffer[9]; // Enough for 8 hex digits + null terminator
+    int i = 0;
+    const char* hex_digits = "0123456789abcdef";
+
+    if (num == 0) {
+        terminal_putchar('0');
+        return;
+    }
+
+    while (num > 0) {
+        buffer[i++] = hex_digits[num & 0xF];
+        num >>= 4;
+    }
+
+    // Print in reverse order
+    while (i--) {
+        terminal_putchar(buffer[i]);
+    }
+}
+
+
