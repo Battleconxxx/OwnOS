@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <kernel/tty.h>
 
 static bool print(const char* data, size_t length) {
 	const unsigned char* bytes = (const unsigned char*) data;
@@ -11,6 +12,52 @@ static bool print(const char* data, size_t length) {
 			return false;
 	return true;
 }
+
+
+// static void itoa(int value, char* buffer) {
+// 	char temp[12];
+// 	int i = 0;
+// 	bool negative = false;
+
+// 	if (value == -2147483648) { // Handle INT_MIN
+// 		strcpy(buffer, "-2147483648");
+// 		return;
+// 	}
+
+// 	if (value < 0) {
+// 		negative = true;
+// 		value = -value;
+// 	}
+
+// 	do {
+// 		temp[i++] = '0' + (value % 10);
+// 		value /= 10;
+// 	} while (value != 0);
+
+// 	if (negative)
+// 		temp[i++] = '-';
+
+// 	for (int j = 0; j < i; j++)
+// 		buffer[j] = temp[i - j - 1];
+// 	buffer[i] = '\0';
+// }
+
+
+// static void itox(unsigned int value, char* buffer) {
+// 	char digits[] = "0123456789abcdef";
+// 	char temp[9];
+// 	int i = 0;
+
+// 	do {
+// 		temp[i++] = digits[value % 16];
+// 		value /= 16;
+// 	} while (value != 0);
+
+// 	for (int j = 0; j < i; j++)
+// 		buffer[j] = temp[i - j - 1];
+// 	buffer[i] = '\0';
+// }
+
 
 int printf(const char* restrict format, ...) {
 	va_list parameters;
@@ -61,6 +108,17 @@ int printf(const char* restrict format, ...) {
 			if (!print(str, len))
 				return -1;
 			written += len;
+		} else if (*format == 'd') {
+			format++;
+			int val = va_arg(parameters, int);
+			// You handle printing, we just estimate characters (max 12)
+			terminal_write_dec(val);
+			written += 12; // safe upper bound for int
+		} else if (*format == 'x') {
+			format++;
+			unsigned int val = va_arg(parameters, unsigned int);
+			terminal_write_hex(val);
+			written += 8; // assuming 32-bit hex
 		} else {
 			format = format_begun_at;
 			size_t len = strlen(format);
