@@ -28,8 +28,21 @@ isr14:
 
 global isr32
 extern timer_handler
+
 isr32:
-    pusha
-    call timer_handler
-    popa
+    cli
+    pusha               ; save general registers
+
+    mov eax, esp        ; save current esp in eax (points to pushed registers)
+    push eax            ; push esp as argument to timer_handler
+
+    call timer_handler  ; call scheduler in C, returns next stack pointer in eax
+
+    pop eax             ; clean argument
+
+    mov esp, eax        ; switch to next thread's stack pointer
+
+    popa                ; restore registers from new stack
+    sti
     iret
+

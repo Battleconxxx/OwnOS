@@ -1,5 +1,13 @@
 #include "kernel/stdio.h"
 #include "kernel/interrupts.h"
+#include "kernel/thread.h"
+
+#define PIT_CHANNEL0 0x40
+#define PIT_COMMAND  0x43
+#define PIT_FREQUENCY 1193182
+#define PIT_IRQ 0
+#define PIT_DEFAULT_HZ 100  // 100 Hz timer interrupt frequency
+
 
 struct idt_entry idt[256];
 struct idt_ptr idtp;
@@ -8,6 +16,10 @@ extern void idt_load(); // Assembly function to load IDT
 extern void isr14();
 extern void isr0();
 extern void isr32();
+extern void yield(void);
+
+static thread_t* current_thread = 0;
+static thread_t* thread_list = 0;
 
 void idt_set_gate(int num, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[num].base_low = base & 0xFFFF;
@@ -48,6 +60,8 @@ void init_interrupts() {
     idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E); // Divide-by-zero
     idt_set_gate(14, (uint32_t)isr14, 0x08, 0x8E); // Page fault
     idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E); // Timer
+
+    pit_init(PIT_DEFAULT_HZ);
     idt_load();
     asm volatile ("sti");
 }
@@ -57,12 +71,38 @@ void page_fault_handler(uint32_t error_code, uint32_t fault_addr) {
     while (1) { asm("hlt"); }
 }
 
-void timer_handler() {
-    printf("Timer tick\n");
-    outb(0x20, 0x20); // EOI
+uint32_t* timer_handler(uint32_t* current_esp) {
+    // Save current esp to current_thread struct
+    if (current_thread) {
+        current_thread->stack_pointer = current_esp;
+    }
+
+    // Pick next thread (round robin)
+    if (!current_thread) {
+        current_thread = thread_list;
+    } else if (current_thread->next) {
+        current_thread = current_thread->next;
+    } else {
+        current_thread = thread_list;
+    }
+
+    // Send EOI to PIC
+    outb(0x20, 0x20);
+
+    return current_thread->stack_pointer;
 }
 
 void divide_by_zero_handler(uint32_t error_code, uint32_t int_no) {
     printf("Divide by zero error (int %d), error code: 0x%x\n", int_no, error_code);
     while (1) { asm("hlt"); }
 }
+
+//multithreading stuff
+
+void pit_init(uint32_t frequency) {
+    uint32_t divisor = PIT_FREQUENCY / frequency;
+    outb(PIT_COMMAND, 0x36);          // Channel 0, mode 3 (square wave)
+    outb(PIT_CHANNEL0, divisor & 0xFF);       // Low byte
+    outb(PIT_CHANNEL0, (divisor >> 8) & 0xFF); // High byte
+}
+

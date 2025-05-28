@@ -21,8 +21,9 @@ extern struct idt_ptr idtp;
 void idt_set_gate(int num, uint32_t base, uint16_t sel, uint8_t flags);
 void init_interrupts();
 void page_fault_handler(uint32_t error_code, uint32_t fault_addr);
-void timer_handler();
+uint32_t* timer_handler(uint32_t* current_esp);
 void divide_by_zero_handler(uint32_t error_code, uint32_t int_no);
+void pit_init(uint32_t frequency);
 
 
 static inline void outb(uint16_t port, uint8_t val) {

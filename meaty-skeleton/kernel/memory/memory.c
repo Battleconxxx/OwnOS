@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <kernel/memory.h>
 #include <stdio.h>
+#include <stddef.h>
 
 uint8_t memory_bitmap[MAX_FRAMES / 8];
 memory_region_t usable_regions[MAX_MEMORY_REGIONS];
@@ -9,6 +10,26 @@ int usable_region_count = 0;
 //paging stuff
 uint32_t page_directory[1024] __attribute__((aligned(4096)));
 uint32_t first_page_table[1024] __attribute__((aligned(4096)));
+
+//heap stuff for multithreading
+static uint32_t heap_next = KERNEL_HEAP_START;
+static uint32_t heap_end = KERNEL_HEAP_START + KERNEL_HEAP_SIZE;
+
+void* kmalloc(size_t size) {
+    // Align size to 4 bytes
+    size = (size + 3) & ~3;
+
+    if (heap_next + size > heap_end) {
+        // Heap overflow - no free memory available
+        return 0; // Or handle error
+    }
+
+    void* ptr = (void*)heap_next;
+    heap_next += size;
+
+    return ptr;
+}
+
 
 void parse_memory_map(multiboot_info_t* mbi) {
     if (!(mbi->flags & (1 << 6))) {
@@ -62,31 +83,6 @@ void init_memory() {
     }
 }
 
-//paging stuff
-// void init_paging() {
-//     for (int i = 0; i < 1024; i++) {
-//         // Identity map first 4MB (0x00000000–0x003FFFFF)
-//         first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_RW;
-//     }
-
-//     // Point first page directory entry to the page table
-//     page_directory[0] = ((uint32_t)first_page_table) | PAGE_PRESENT | PAGE_RW;
-
-//     // Zero out the rest of the directory
-//     for (int i = 1; i < 1024; i++) {
-//         page_directory[i] = 0;
-//     }
-
-//     // Load page directory into CR3
-//     asm volatile ("mov %0, %%cr3" :: "r"(&page_directory));
-
-//     // Enable paging: set the PG (bit 31) and PE (bit 0) in CR0
-//     uint32_t cr0;
-//     asm volatile ("mov %%cr0, %0" : "=r"(cr0));
-//     cr0 |= 0x80000000;  // Set PG bit
-//     asm volatile ("mov %0, %%cr0" :: "r"(cr0));
-// }
-
 void init_paging() {
     for (int i = 0; i < 1024; i++) {
         first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_RW;
@@ -102,4 +98,48 @@ void init_paging() {
     asm volatile ("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= 0x80000000;  // enable paging
     asm volatile ("mov %0, %%cr0" :: "r"(cr0));
+}
+
+
+// Helper to map a single 4KB page: assumes page directory & page tables exist
+extern uint32_t page_directory[1024]; // from memory.c
+
+void map_page(uint32_t virtual_addr, uint32_t physical_addr) {
+    uint32_t pd_index = virtual_addr >> 22;
+    uint32_t pt_index = (virtual_addr >> 12) & 0x3FF;
+
+    // Get page table or allocate it
+    uint32_t* page_table;
+    if (!(page_directory[pd_index] & PAGE_PRESENT)) {
+        // Allocate page table frame
+        uint32_t frame = first_free_frame();
+        if (frame == (uint32_t)-1) return; // No free frame
+
+        set_frame(frame);
+        uint32_t pt_phys = frame * FRAME_SIZE;
+
+        // Map page table to virtual address (choose an identity map or a fixed region)
+        // For simplicity, identity map page tables at some virtual address or store physical addr:
+        page_directory[pd_index] = pt_phys | PAGE_PRESENT | PAGE_RW;
+        page_table = (uint32_t*)(pt_phys); // You may need to identity map this address
+    } else {
+        page_table = (uint32_t*)(page_directory[pd_index] & ~0xFFF);
+    }
+
+    page_table[pt_index] = physical_addr | PAGE_PRESENT | PAGE_RW;
+}
+
+void init_kernel_heap_mapping() {
+    // Map pages for the heap virtual range
+    for (uint32_t addr = KERNEL_HEAP_START; addr < KERNEL_HEAP_START + KERNEL_HEAP_SIZE; addr += FRAME_SIZE) {
+        uint32_t frame = first_free_frame();
+        if (frame == (uint32_t)-1) {
+            // no frames available, panic or return
+            return;
+        }
+        set_frame(frame);
+        uint32_t phys_addr = frame * FRAME_SIZE;
+
+        map_page(addr, phys_addr);
+    }
 }

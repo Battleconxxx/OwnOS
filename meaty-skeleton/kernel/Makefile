@@ -42,7 +42,8 @@ interrupts/idt.o \
 interrupts/isr.o \
 FS/fs.o \
 arch/i386/gdt.o \
-arch/i386/gdt_flush.o
+arch/i386/gdt_flush.o \
+thread/scheduler.o
 
 OBJS=\
 $(ARCHDIR)/crti.o \

@@ -5,6 +5,21 @@
 #include <kernel/interrupts.h>
 #include <kernel/fs.h>
 #include <kernel/gdt.h>
+#include <kernel/thread.h>
+
+void thread_A() {
+    while (1) {
+        printf("A");
+        for (volatile int i = 0; i < 1000; i++); // crude delay
+    }
+}
+
+void thread_B() {
+    while (1) {
+        printf("B");
+        for (volatile int i = 0; i < 1000; i++); // crude delay
+    }
+}
 
 
 void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
@@ -13,6 +28,7 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 	printf("Hello, kernel World!123\n %s %d %x","Welcome to Sudhan Operating System", 123, 0x123);
 	parse_memory_map(mbi);
 	init_interrupts();
+    init_threading();
 	init_memory();
 	init_paging();
 	ramfs_init();
@@ -26,8 +42,9 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
     buffer[13] = '\0';
     printf("Read from RAMFS: %s\n", buffer);
 
+    create_thread(thread_A);
+    //create_thread(thread_B);
+
 	asm volatile ("sti");
-	
-	volatile uint32_t *ptr = (uint32_t*)0x5000000;  // 80 MB (outside identity map)
-	uint32_t val = *ptr;  // Should cause a page fault interrupt
+
 }
