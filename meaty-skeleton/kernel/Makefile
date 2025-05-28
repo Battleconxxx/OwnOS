@@ -39,7 +39,10 @@ kernel/kernel.o \
 memory/memory.o \
 interrupts/interrupts.o \
 interrupts/idt.o \
-interrupts/isr.o
+interrupts/isr.o \
+FS/fs.o \
+arch/i386/gdt.o \
+arch/i386/gdt_flush.o
 
 OBJS=\
 $(ARCHDIR)/crti.o \
@@ -77,13 +80,19 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 .S.o:
 	$(CC) -m32 -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
+#gdt stuff
+arch/i386/gdt.o: arch/i386/gdt.c include/kernel/gdt.h
+	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
+
+arch/i386/gdt_flush.o: arch/i386/gdt.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
 #interrupts compiling
 interrupts/idt.o: interrupts/idt.asm
 	$(AS) $(ASFLAGS) $< -o $@
 
 interrupts/isr.o: interrupts/isr.asm
 	$(AS) $(ASFLAGS) $< -o $@
-
 
 clean:
 	rm -f myos.kernel
