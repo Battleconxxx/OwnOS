@@ -27,10 +27,12 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 	terminal_initialize();
 	printf("Hello, kernel World!123\n %s %d %x","Welcome to Sudhan Operating System", 123, 0x123);
 	parse_memory_map(mbi);
+    init_memory();
+    mark_usable_frames();
+	init_paging();
+    init_kernel_heap_mapping();
 	init_interrupts();
     init_threading();
-	init_memory();
-	init_paging();
 	ramfs_init();
 
 	// Example: create and use files
@@ -42,9 +44,8 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
     buffer[13] = '\0';
     printf("Read from RAMFS: %s\n", buffer);
 
-    create_thread(thread_A);
-    //create_thread(thread_B);
-
+    // create_thread(thread_A);
+    // create_thread(thread_B);
 	asm volatile ("sti");
 
 }

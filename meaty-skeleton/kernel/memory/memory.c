@@ -84,13 +84,20 @@ void init_memory() {
 }
 
 void init_paging() {
+
+    // Clear page directory
+    for (int i = 0; i < 1024; i++) page_directory[i] = 0;
+
     for (int i = 0; i < 1024; i++) {
         first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_RW;
     }
-    for (int i = 1; i < 1024; i++) {
-        page_directory[i] = 0;
-    }
     page_directory[0] = ((uint32_t)first_page_table) | PAGE_PRESENT | PAGE_RW;
+
+    static uint32_t kernel_table[1024] __attribute__((aligned(4096)));
+
+    for (int i = 0; i < 1024; i++)
+        kernel_table[i] = (i * 0x1000 + 0x00100000) | PAGE_PRESENT | PAGE_RW;
+    page_directory[768] = ((uint32_t)kernel_table) | PAGE_PRESENT | PAGE_RW;
 
     asm volatile ("mov %0, %%cr3" :: "r"(page_directory));
 
@@ -141,5 +148,18 @@ void init_kernel_heap_mapping() {
         uint32_t phys_addr = frame * FRAME_SIZE;
 
         map_page(addr, phys_addr);
+    }
+}
+
+void mark_usable_frames() {
+    for (int i = 0; i < usable_region_count; i++) {
+        uint32_t base = usable_regions[i].base;
+        uint32_t length = usable_regions[i].length;
+        uint32_t start_frame = base / FRAME_SIZE;
+        uint32_t end_frame = (base + length) / FRAME_SIZE;
+
+        for (uint32_t frame = start_frame; frame < end_frame; frame++) {
+            clear_frame(frame); // Mark as free
+        }
     }
 }

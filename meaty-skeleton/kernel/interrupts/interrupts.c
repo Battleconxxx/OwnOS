@@ -16,7 +16,7 @@ extern void idt_load(); // Assembly function to load IDT
 extern void isr14();
 extern void isr0();
 extern void isr32();
-extern void yield(void);
+// extern void yield(void);
 
 static thread_t* current_thread = 0;
 static thread_t* thread_list = 0;
@@ -48,9 +48,7 @@ void idt_install() {
 
     for (int i = 0; i < 256; i++) {
         idt_set_gate(i, 0, 0, 0);  // Clear entries
-    }
-
-    
+    }    
 }
 
 void init_interrupts() {

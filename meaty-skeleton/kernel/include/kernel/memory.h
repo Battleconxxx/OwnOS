@@ -12,6 +12,7 @@
 
 //heap for multithreading
 #define KERNEL_HEAP_START 0xC0000000  // Typical kernel heap start (high mem)
+// #define KERNEL_HEAP_SIZE  (4 * 1024 * 1024)  // 4 MB heap
 #define KERNEL_HEAP_SIZE  (4 * 1024 * 1024)  // 4 MB heap
 
 
@@ -40,6 +41,8 @@ int test_frame(uint32_t frame);
 uint32_t first_free_frame();
 void init_paging();
 void* kmalloc(size_t size);
+void init_kernel_heap_mapping();
+void mark_usable_frames();
 
 
 #endif

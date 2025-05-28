@@ -31,17 +31,17 @@ void create_thread(void (*function)(void)) {
 
 void yield() {
     if (!current_thread || !current_thread->next) return;
+
     thread_t* prev = current_thread;
     current_thread = current_thread->next;
 
     asm volatile (
-        "pusha\n"
-        "mov %%esp, %0\n"
-        "mov %1, %%esp\n"
-        "popa\n"
-        "ret\n"
-        : "=m"(prev->stack_pointer)
-        : "m"(current_thread->stack_pointer)
+        "mov %%esp, %[prev_sp]\n"     // save old ESP
+        "mov %[next_sp], %%esp\n"     // load new ESP
+        "popa\n"                      // restore general-purpose registers
+        "ret\n"                       // return to the new thread
+        : [prev_sp] "=m"(prev->stack_pointer)
+        : [next_sp] "m"(current_thread->stack_pointer)
     );
 }
 
