@@ -43,7 +43,12 @@ interrupts/isr.o \
 FS/fs.o \
 arch/i386/gdt.o \
 arch/i386/gdt_flush.o \
-thread/scheduler.o
+thread/scheduler.o \
+loader/elf_loader.o \
+arch/i386/tss.o \
+arch/i386/tss_flush.o \
+arch/i386/switch_to_user_mode.o \
+user/user_entry.o
 
 OBJS=\
 $(ARCHDIR)/crti.o \
@@ -81,11 +86,20 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 .S.o:
 	$(CC) -m32 -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
+
 #gdt stuff
 arch/i386/gdt.o: arch/i386/gdt.c include/kernel/gdt.h
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
 
 arch/i386/gdt_flush.o: arch/i386/gdt.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
+#tss stuff
+arch/i386/tss_flush.o: arch/i386/tss_flush.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
+#switch to user mode
+arch/i386/switch_to_user_mode.o: arch/i386/switch_to_user_mode.asm
 	$(AS) $(ASFLAGS) $< -o $@
 
 #interrupts compiling

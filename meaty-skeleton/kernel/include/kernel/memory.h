@@ -33,6 +33,16 @@ typedef struct {
 extern memory_region_t usable_regions[];
 extern int usable_region_count;
 
+#define KERNEL_STACK_SIZE 4096
+#define USER_STACK_SIZE 4096
+
+extern uint8_t kernel_stack[KERNEL_STACK_SIZE];
+#define KERNEL_STACK_TOP ((uint32_t)&kernel_stack[KERNEL_STACK_SIZE])
+
+
+extern uint8_t user_stack[USER_STACK_SIZE];
+extern void* user_stack_top;
+
 void parse_memory_map(multiboot_info_t* mbi);
 void init_memory();
 void set_frame(uint32_t frame);
@@ -43,6 +53,8 @@ void init_paging();
 void* kmalloc(size_t size);
 void init_kernel_heap_mapping();
 void mark_usable_frames();
+void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
+void map_elf_blob(void *addr, uint32_t length);
 
 
 #endif

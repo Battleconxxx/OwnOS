@@ -39,6 +39,14 @@ SECTIONS
 		*(.bss)
 	}
 
+	/* Add this section to hold the embedded ELF binary */
+    .elfdata : ALIGN(4K)
+    {
+        __elf_start = .;
+        KEEP(*(.elfdata))
+        __elf_end = .;
+    }
+
 	/* The compiler may produce other sections, put them in the proper place in
 	   in this file, if you'd like to include them in the final kernel. */
 }
