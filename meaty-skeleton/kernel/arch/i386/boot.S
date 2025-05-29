@@ -30,7 +30,10 @@ _start:
 	call _init
 
 	# Transfer control to the main kernel.
+	push %ebx
+	push % eax
 	call kernel_main
+	add $8, %esp
 
 	# Hang if kernel_main unexpectedly returns.
 	cli

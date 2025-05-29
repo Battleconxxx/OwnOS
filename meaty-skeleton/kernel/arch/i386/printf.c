@@ -5,7 +5,10 @@ void printf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
+    terminal_write("hello");
+
     for (size_t i = 0; fmt[i] != '\0'; i++) {
+
         if (fmt[i] == '%' && fmt[i + 1]) {
             i++;
             switch (fmt[i]) {
