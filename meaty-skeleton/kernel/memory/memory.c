@@ -16,9 +16,10 @@ uint32_t first_page_table[1024] __attribute__((aligned(4096)));
 static uint32_t heap_next = KERNEL_HEAP_START;
 static uint32_t heap_end = KERNEL_HEAP_START + KERNEL_HEAP_SIZE;
 
+
 uint8_t kernel_stack[KERNEL_STACK_SIZE] __attribute__((aligned(16)));
 uint8_t user_stack[USER_STACK_SIZE] __attribute__((aligned(16)));
-void* user_stack_top = &user_stack[USER_STACK_SIZE];
+
 
 void* kmalloc(size_t size) {
     // Align size to 4 bytes
@@ -88,42 +89,101 @@ void init_memory() {
     }
 }
 
+// OLD INIT PAGING
+// void init_paging() {
+
+//     // Clear page directory
+//     for (int i = 0; i < 1024; i++) page_directory[i] = 0;
+
+//     for (int i = 0; i < 1024; i++) {
+//         first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_RW;
+//     }
+//     page_directory[0] = ((uint32_t)first_page_table) | PAGE_PRESENT | PAGE_RW;
+
+
+//     //next 4mb
+//     // Second page table: map 0x00400000 - 0x007FFFFF (next 4MB)
+//     static uint32_t second_page_table[1024] __attribute__((aligned(4096)));
+//     for (int i = 0; i < 1024; i++) {
+//         second_page_table[i] = (i * 0x1000 + 0x00400000) | PAGE_PRESENT | PAGE_RW;
+//     }
+//     page_directory[1] = ((uint32_t)second_page_table) | PAGE_PRESENT | PAGE_RW;
+
+//         // Add page table 2: 0x00800000 - 0x00BFFFFF
+//     static uint32_t third_page_table[1024] __attribute__((aligned(4096)));
+//     for (int i = 0; i < 1024; i++) {
+//         third_page_table[i] = (i * 0x1000 + 0x00800000) | PAGE_PRESENT | PAGE_RW;
+//     }
+//     page_directory[2] = ((uint32_t)third_page_table) | PAGE_PRESENT | PAGE_RW;
+
+
+//     static uint32_t kernel_table[1024] __attribute__((aligned(4096)));
+
+//     for (int i = 0; i < 1024; i++)
+//         kernel_table[i] = (i * 0x1000 + 0x00100000) | PAGE_PRESENT | PAGE_RW;
+//     page_directory[768] = ((uint32_t)kernel_table) | PAGE_PRESENT | PAGE_RW;
+
+//     asm volatile ("mov %0, %%cr3" :: "r"(page_directory));
+
+//     uint32_t cr0;
+//     asm volatile ("mov %%cr0, %0" : "=r"(cr0));
+//     cr0 |= 0x80000000;  // enable paging
+//     asm volatile ("mov %0, %%cr0" :: "r"(cr0));
+// }
+
+
 void init_paging() {
 
     // Clear page directory
     for (int i = 0; i < 1024; i++) page_directory[i] = 0;
 
+    // Map 0x00000000 - 0x003FFFFF (first 4MB)
     for (int i = 0; i < 1024; i++) {
         first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_RW;
     }
     page_directory[0] = ((uint32_t)first_page_table) | PAGE_PRESENT | PAGE_RW;
 
-
-    //next 4mb
-    // Second page table: map 0x00400000 - 0x007FFFFF (next 4MB)
+    // Map 0x00400000 - 0x007FFFFF (second 4MB)
     static uint32_t second_page_table[1024] __attribute__((aligned(4096)));
     for (int i = 0; i < 1024; i++) {
         second_page_table[i] = (i * 0x1000 + 0x00400000) | PAGE_PRESENT | PAGE_RW;
     }
     page_directory[1] = ((uint32_t)second_page_table) | PAGE_PRESENT | PAGE_RW;
 
-    static uint32_t kernel_table[1024] __attribute__((aligned(4096)));
+    // Map 0x00800000 - 0x00BFFFFF (third 4MB)
+    static uint32_t third_page_table[1024] __attribute__((aligned(4096)));
+    for (int i = 0; i < 1024; i++) {
+        third_page_table[i] = (i * 0x1000 + 0x00800000) | PAGE_PRESENT | PAGE_RW;
+    }
+    page_directory[2] = ((uint32_t)third_page_table) | PAGE_PRESENT | PAGE_RW;
 
+    // ✅ Map 0x00C00000 - 0x00FFFFFF (fourth 4MB)
+    static uint32_t fourth_page_table[1024] __attribute__((aligned(4096)));
+    for (int i = 0; i < 1024; i++) {
+        fourth_page_table[i] = (i * 0x1000 + 0x00C00000) | PAGE_PRESENT | PAGE_RW;
+    }
+    page_directory[3] = ((uint32_t)fourth_page_table) | PAGE_PRESENT | PAGE_RW;
+
+    // Map kernel higher-half: 0xC0000000 - 0xC03FFFFF
+    static uint32_t kernel_table[1024] __attribute__((aligned(4096)));
     for (int i = 0; i < 1024; i++)
         kernel_table[i] = (i * 0x1000 + 0x00100000) | PAGE_PRESENT | PAGE_RW;
     page_directory[768] = ((uint32_t)kernel_table) | PAGE_PRESENT | PAGE_RW;
 
+    // Load page directory
     asm volatile ("mov %0, %%cr3" :: "r"(page_directory));
 
+    // Enable paging
     uint32_t cr0;
     asm volatile ("mov %%cr0, %0" : "=r"(cr0));
-    cr0 |= 0x80000000;  // enable paging
+    cr0 |= 0x80000000;
     asm volatile ("mov %0, %%cr0" :: "r"(cr0));
 }
 
 
+
 // Helper to map a single 4KB page: assumes page directory & page tables exist
-extern uint32_t page_directory[1024]; // from memory.c
+//extern uint32_t page_directory[1024]; // from memory.c
 
 void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags) {
     uint32_t pd_index = virtual_addr >> 22;
@@ -131,7 +191,7 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags) {
 
     uint32_t* page_table;
 
-    if (!(page_directory[pd_index] & PAGE_PRESENT)) {
+    if (!(page_directory[pd_index] & PAGE_PRESENT  || (page_directory[pd_index] & ~0xFFF) == 0)) {
         uint32_t frame = first_free_frame();
         if (frame == (uint32_t)-1) {
             printf("map_page: No free frames for page table\n");
@@ -170,16 +230,19 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags) {
         page_table = (uint32_t*)pt_virt;
     }
 
-    //doubtful line
+    
     page_table[pt_index] = physical_addr | PAGE_PRESENT | PAGE_RW | (flags & PAGE_USER);
 }
 
 void map_elf_blob(void *addr, uint32_t length) {
     uint32_t start = (uint32_t)addr & 0xFFFFF000;
     uint32_t end   = ((uint32_t)addr + length + 0x1000) & 0xFFFFF000;
-
-    for (uint32_t a = start; a < end; a += 0x1000)
-        map_page(a, a, PAGE_PRESENT | PAGE_RW);  // Identity map
+    for (uint32_t a = start; a < end; a += 0x1000){
+        if (a <= 0x101bc0 && a + 0x1000 > 0x101bc0) {
+            printf("0x101bc0 is being mapped at page: 0x%x\n", a);
+        }
+        map_page(a, a, PAGE_PRESENT | PAGE_RW | PAGE_USER);  // Identity map
+    }
 }
 
 
@@ -237,6 +300,9 @@ void alloc_user_stack(uint32_t user_stack_top, uint32_t size_in_pages) {
         uint32_t pd_index = virt_addr >> 22;
         uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
 
+        
+
+
         uint32_t* page_table;
 
         if (!(page_directory[pd_index] & PAGE_PRESENT)) {
@@ -248,6 +314,7 @@ void alloc_user_stack(uint32_t user_stack_top, uint32_t size_in_pages) {
             set_frame(pt_frame);
             uint32_t pt_phys = pt_frame * FRAME_SIZE;
 
+            printf("alloc_user_stack: pd_index=%x pt_phys=0x%x\n", pd_index, pt_phys);
             void* pt_virt = (pt_phys < 0x800000) ? (void*)pt_phys : NULL;
             if (!pt_virt) {
                 printf("alloc_user_stack: pt_phys > 8MB, cannot map\n");
@@ -259,9 +326,9 @@ void alloc_user_stack(uint32_t user_stack_top, uint32_t size_in_pages) {
             page_table = (uint32_t*)pt_virt;
         } else {
             uint32_t pt_phys = page_directory[pd_index] & ~0xFFF;
-            void* pt_virt = (pt_phys < 0x400000) ? (void*)pt_phys : NULL;
+            void* pt_virt = (pt_phys < 0x800000) ? (void*)pt_phys : NULL;
             if (!pt_virt) {
-                printf("alloc_user_stack: existing pt > 4MB\n");
+                printf("alloc_user_stack: existing pt > 8MB\n");
                 return;
             }
             page_table = (uint32_t*)pt_virt;
@@ -270,4 +337,13 @@ void alloc_user_stack(uint32_t user_stack_top, uint32_t size_in_pages) {
         page_table[pt_index] = phys_addr | PAGE_PRESENT | PAGE_RW | PAGE_USER;
     }
 }
+
+
+// void alloc_user_stack(uint32_t user_stack_top, uint32_t size_in_pages) {
+//     for (uint32_t i = 0; i < size_in_pages; i++) {
+//         uint32_t addr = user_stack_top - ((i + 1) * FRAME_SIZE);
+//         uint32_t phys = first_free_frame();
+//         map_page(addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+//     }
+// }
 

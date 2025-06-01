@@ -8,18 +8,15 @@
 #include <kernel/thread.h>
 #include <kernel/elf_loader.h>
 #include <kernel/hello_elf.h>
-#include <kernel/user.h>
+#include <kernel/user_entry.h>
+#include <string.h>
 
 
 #define USER_PROGRAM_START 0x101000
-#define USER_PROGRAM_SIZE (20 * FRAME_SIZE)  // Map 3 pages (12KB)
+#define USER_PROGRAM_SIZE (30 * FRAME_SIZE)  // Map 3 pages (12KB)
 
 #define USER_STACK_BASE 0x00700000  // 7 MB mark, must be mapped
 #define USER_STACK_SIZE 0x2000      // 8 KB stack
-
-
-extern uint8_t _binary_hello_elf_start[];
-extern uint8_t _binary_hello_elf_end[];
 
 typedef void (*entry_point_t)(void);
 
@@ -69,9 +66,41 @@ void jump_to_user_mode(uint32_t entry, uint32_t user_stack_top) {
         "iret\n"
         :
         : [entry_point] "r" (entry),
-          [user_stack] "r" (user_stack_top)
+          [user_stack] "r" (USER_STACK_TOP)
         : "eax"
     );
+}
+
+
+#define PAGE_DIR_INDEX(x) (((x) >> 22) & 0x3FF)
+#define PAGE_TABLE_INDEX(x) (((x) >> 12) & 0x3FF)
+
+extern uint32_t* page_directory; // your page directory base
+
+void dump_page_table_for(uint32_t vaddr) {
+    uint32_t pdi = PAGE_DIR_INDEX(vaddr);
+    uint32_t pti = PAGE_TABLE_INDEX(vaddr);
+    printf("Here");
+    uint32_t pd_entry = page_directory[pdi];
+    printf("pd_entry = 0x%x\n", pd_entry);
+    if (!(pd_entry & 0x1)) {
+        printf("Page directory entry not present for 0x%x\n", vaddr);
+        return;
+    }
+
+    
+
+    uint32_t* page_table = (uint32_t*)(pd_entry & 0xFFFFF000);
+    uint32_t pt_entry = page_table[pti];
+    printf("Here2");
+    if (pt_entry & 0x1) {
+        uint32_t phys_addr = (pt_entry & 0xFFFFF000) | (vaddr & 0xFFF);
+        printf("Here3");
+        printf("VA 0x%x => PA 0x%x (flags: 0x%x)\n", vaddr, phys_addr, pt_entry & 0xFFF);
+    } else {
+        printf("here4");
+        printf("Page table entry not present for 0x%x\n", vaddr);
+    }
 }
 
 
@@ -90,10 +119,18 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 
     map_user_program();
     map_user_stack();
+    alloc_user_stack(USER_STACK_TOP, 4);  // 1 page = 4 KB stack
+
 
     extern void switch_to_user_mode();
-    switch_to_user_mode(); // Will call user_mode_entry() in ring 3
+    extern void user_mode_entry();
 
+    printf("About to jump to 0x%x\n", (uint32_t)user_mode_entry);
+
+    dump_page_table_for((uint32_t)user_mode_entry);  // You can write this to dump entries
+
+    jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
+    switch_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
 	asm volatile ("sti");
 
 }

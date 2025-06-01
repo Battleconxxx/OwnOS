@@ -48,7 +48,7 @@ loader/elf_loader.o \
 arch/i386/tss.o \
 arch/i386/tss_flush.o \
 arch/i386/switch_to_user_mode.o \
-user/user_entry.o
+user/user_entry.o \
 
 OBJS=\
 $(ARCHDIR)/crti.o \

@@ -7,6 +7,6 @@
         "hello_elf.h": "c",
         "tss.h": "c",
         "gdt.h": "c",
-        "user.h": "c"
+        "user_entry.h": "c"
     }
 }

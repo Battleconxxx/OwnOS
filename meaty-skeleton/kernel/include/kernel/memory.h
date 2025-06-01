@@ -39,9 +39,11 @@ extern int usable_region_count;
 extern uint8_t kernel_stack[KERNEL_STACK_SIZE];
 #define KERNEL_STACK_TOP ((uint32_t)&kernel_stack[KERNEL_STACK_SIZE])
 
+#define USER_STACK_TOP  0xBFFFF000
+#define USER_STACK_SIZE 0x1000
+#define USER_STACK_BASE (USER_STACK_TOP - USER_STACK_SIZE)
 
-extern uint8_t user_stack[USER_STACK_SIZE];
-extern void* user_stack_top;
+
 
 void parse_memory_map(multiboot_info_t* mbi);
 void init_memory();
@@ -55,6 +57,7 @@ void init_kernel_heap_mapping();
 void mark_usable_frames();
 void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
 void map_elf_blob(void *addr, uint32_t length);
+void alloc_user_stack(uint32_t user_stack_top, uint32_t size_in_pages);
 
 
 #endif

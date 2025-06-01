@@ -68,6 +68,7 @@ uint32_t load_elf(const char* filename) {
             if (frame == (uint32_t)-1) return 0;
             set_frame(frame);
             map_page(addr, frame * FRAME_SIZE, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+            
         }
 
         // Zero out segment memory first
@@ -120,7 +121,7 @@ uint32_t load_elf_from_memory(void* elf_data, size_t size) {
                 return 0;
             }
             set_frame(frame);
-            map_page(addr, frame * FRAME_SIZE, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+            map_page(addr, frame * FRAME_SIZE, PAGE_PRESENT | PAGE_RW | PAGE_USER);            
         }
 
         // Zero out the segment memory first

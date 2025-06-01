@@ -69,6 +69,7 @@ void page_fault_handler(uint32_t error_code, uint32_t fault_addr) {
     while (1) { asm("hlt"); }
 }
 
+
 uint32_t* timer_handler(uint32_t* current_esp) {
     // Save current esp to current_thread struct
     if (current_thread) {

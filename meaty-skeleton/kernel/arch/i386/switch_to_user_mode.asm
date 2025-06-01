@@ -1,6 +1,6 @@
 global switch_to_user_mode
 extern user_mode_entry
-extern user_stack_top
+
 
 section .text
 switch_to_user_mode:
@@ -13,9 +13,8 @@ switch_to_user_mode:
 
     ; Push the stack for IRET
     ; Stack layout: SS, ESP, EFLAGS, CS, EIP
-    push 0x23           ; User SS
-    mov eax, [user_stack_top]            ; User ESP (current ESP becomes user stack)
-    push eax
+    push 0x23           ; User SS                
+    push 0xBFFFF000     ; User ESP (current ESP becomes user stack)
     pushf               ; EFLAGS
     push 0x1B           ; User CS
     push dword user_mode_entry ; EIP = entry point in user mode
