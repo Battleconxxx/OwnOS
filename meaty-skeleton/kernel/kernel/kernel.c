@@ -67,11 +67,13 @@ void jump_to_user_mode(uint32_t entry, uint32_t user_stack_top) {
 extern uint32_t* page_directory; // your page directory base
 
 void dump_page_table_for(uint32_t vaddr) {
+    
     uint32_t pdi = PAGE_DIR_INDEX(vaddr);
     uint32_t pti = PAGE_TABLE_INDEX(vaddr);
     uint32_t* pd = (uint32_t*)0xFFFFF000;  // recursive mapping of the page directory
     uint32_t pd_entry = pd[pdi];
-
+    printf("YOYOYOYOYOY");
+    printf("Here");
     printf("pd_entry = 0x%x\n", pd_entry);
     if (!(pd_entry & 0x1)) {
         printf("Page directory entry not present for 0x%x\n", vaddr);
@@ -79,6 +81,8 @@ void dump_page_table_for(uint32_t vaddr) {
     } 
 
     uint32_t* page_table = (uint32_t*)(0xFFC00000 + (pdi * 0x1000));
+
+    printf("PT[%x] = 0x%x\n", pti, page_table[pti]);
 
     uint32_t pt_entry = page_table[pti];
     printf("Here2");
@@ -91,44 +95,6 @@ void dump_page_table_for(uint32_t vaddr) {
         printf("Page table entry not present for 0x%x\n", vaddr);
     }
 }
-
-// void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
-    
-//     for (uint32_t i = 0; i < num_pages; ++i) {
-//         uint32_t virt_addr = stack_top - (i + 1) * FRAME_SIZE;
-
-//         uint32_t frame = first_free_frame();
-//         if (frame == (uint32_t)-1) {
-//             printf("No free frame for user stack at 0x%x\n", virt_addr);
-//             return;
-//         }
-
-//         set_frame(frame);
-//         uint32_t phys = frame * FRAME_SIZE;
-//         map_page(virt_addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
-//         printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
-//     }
-// }
-
-//slightly better code
-// void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
-    
-//     uint32_t stack_bottom = stack_top - num_pages * FRAME_SIZE;
-//     for (uint32_t i = 0; i < num_pages; ++i) {
-//         uint32_t virt_addr = stack_bottom + i * FRAME_SIZE;
-
-//         uint32_t frame = first_free_frame();
-//         if (frame == (uint32_t)-1) {
-//             printf("No free frame for user stack at 0x%x\n", virt_addr);
-//             return;
-//         }
-
-//         set_frame(frame);
-//         uint32_t phys = frame * FRAME_SIZE;
-//         map_page(virt_addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
-//         printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
-//     }
-// }
 
 void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
     for (uint32_t i = 0; i < num_pages; ++i) {
@@ -143,10 +109,31 @@ void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
         set_frame(frame);
         uint32_t phys = frame * FRAME_SIZE;
         map_page(virt_addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
-        printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
+        //printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
     }
 }
 
+uint32_t get_kernel_phys_base(multiboot_info_t* mbi) {
+    if (!(mbi->flags & (1 << 5))) {
+        printf("No ELF section headers in multiboot info\n");
+        return 0;
+    }
+    
+    multiboot_elf_section_header_table_t* elf_sec = &mbi->elf_sec;
+
+    uint32_t min_addr = 0xFFFFFFFF;
+    uint32_t max_addr = 0;
+
+    for (uint32_t i = 0; i < elf_sec->num; i++) {
+        multiboot_elf_section_header_t* sec = (multiboot_elf_section_header_t*)(elf_sec->addr + i * elf_sec->size);
+        if (sec->addr < min_addr) min_addr = sec->addr;
+        if (sec->addr + sec->size > max_addr) max_addr = sec->addr + sec->size;
+    }
+
+    printf("Kernel ELF sections range: 0x%x - 0x%x\n", min_addr, max_addr);
+
+    return min_addr; // This is your kernel physical base address
+}
 
 
 
@@ -165,8 +152,8 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 
     
     map_user_program();
-    printf("Here");
     map_user_stack(USER_STACK_TOP, USER_STACK_PAGES);
+    printf("User stack mapped");
     //alloc_user_stack(USER_STACK_TOP, 4);  // 1 page = 4 KB stack
     
     extern void user_mode_entry();
@@ -174,7 +161,7 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 
     
     //dump_page_table_for(0x101d40);
-    dump_page_table_for(USER_STACK_TOP);
+    dump_page_table_for(0xBFFFF000);
     //jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
 	asm volatile ("sti");
 }

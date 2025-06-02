@@ -111,8 +111,15 @@ void init_paging() {
     }
     page_directory[768] = ((uint32_t)kernel_table) | PAGE_PRESENT | PAGE_RW;
 
+    //To find physical address of page directory
+    uint32_t phys_addr_of_page_directory = (uint32_t)page_directory - 0xC0000000;
+    page_directory[1023] = phys_addr_of_page_directory | PAGE_PRESENT | PAGE_RW;
+
+
+
+
     // Recursive mapping: last PDE maps to page directory itself
-    page_directory[1023] = ((uint32_t)page_directory) | PAGE_PRESENT | PAGE_RW;
+    //page_directory[1023] = ((uint32_t)page_directory) | PAGE_PRESENT | PAGE_RW;
 
     // Load page directory into CR3
     asm volatile ("mov %0, %%cr3" :: "r"(page_directory));
@@ -164,12 +171,28 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags) {
 
         void* pt_virt = (pt_phys < 0x800000) ? (void*)pt_phys : temp_map_page(pt_phys);
         memset(pt_virt, 0, FRAME_SIZE);
-        page_directory[pd_index] = pt_phys | PAGE_PRESENT | PAGE_RW | (flags & PAGE_USER);
+        //page_directory[pd_index] = pt_phys | PAGE_PRESENT | PAGE_RW | (flags & PAGE_USER);
+        uint32_t pd_flags = PAGE_PRESENT | PAGE_RW;
+        if (flags & PAGE_USER) pd_flags |= PAGE_USER;
+        page_directory[pd_index] = pt_phys | pd_flags;
+
         page_table = (uint32_t*)pt_virt;
+        if (virtual_addr == 0xBFFFF000) {
+    printf("Mapping VA 0x%x to PA 0x%x with flags 0x%x\n", virtual_addr, physical_addr, flags);
+    printf("PD[%x] = 0x%x after mapping\n", pd_index, page_directory[pd_index]);
+}
+
     } else {
         uint32_t pt_phys = page_directory[pd_index] & ~0xFFF;
         void* pt_virt = (pt_phys < 0x800000) ? (void*)pt_phys : temp_map_page(pt_phys);
         page_table = (uint32_t*)pt_virt;
+
+        if (virtual_addr == 0xBFFFF000) {
+    printf("Mapping VA 0x%x to PA 0x%x with flags 0x%x\n", virtual_addr, physical_addr, flags);
+    printf("PD[%x] = 0x%x after mapping\n", pd_index, page_directory[pd_index]);
+}
+
+
     }
 
     page_table[pt_index] = physical_addr | PAGE_PRESENT | PAGE_RW | (flags & PAGE_USER);
