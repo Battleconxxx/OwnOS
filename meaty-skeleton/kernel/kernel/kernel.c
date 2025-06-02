@@ -24,29 +24,18 @@ void map_user_program() {
     for (uint32_t addr = USER_PROGRAM_START; addr < USER_PROGRAM_START + USER_PROGRAM_SIZE; addr += FRAME_SIZE) {
         uint32_t frame = first_free_frame();
         if (frame == (uint32_t)-1) {
-            printf("No free frame for user program page at %x!\n", addr);
+            printf("No free frame for user program at 0x%x\n", addr);
             return;
         }
+
         set_frame(frame);
         uint32_t phys = frame * FRAME_SIZE;
+        //printf("Mapping VA 0x%x to PA 0x%x\n", addr, phys);
+
         map_page(addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
     }
 }
 
-// Call this somewhere before jumping to ELF
-void map_user_stack() {
-    for (uint32_t addr = USER_STACK_BASE; addr < USER_STACK_BASE + USER_STACK_SIZE; addr += FRAME_SIZE) {
-        uint32_t frame = first_free_frame();
-        if (frame == (uint32_t)-1) {
-            printf("map_user_stack: no free frames!\n");
-            return;
-        }
-        set_frame(frame);
-        uint32_t phys = frame * FRAME_SIZE;
-        map_page(addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
-    }
-    
-}
 
 void jump_to_user_mode(uint32_t entry, uint32_t user_stack_top) {
     asm volatile (
@@ -80,17 +69,17 @@ extern uint32_t* page_directory; // your page directory base
 void dump_page_table_for(uint32_t vaddr) {
     uint32_t pdi = PAGE_DIR_INDEX(vaddr);
     uint32_t pti = PAGE_TABLE_INDEX(vaddr);
-    printf("Here");
-    uint32_t pd_entry = page_directory[pdi];
+    uint32_t* pd = (uint32_t*)0xFFFFF000;  // recursive mapping of the page directory
+    uint32_t pd_entry = pd[pdi];
+
     printf("pd_entry = 0x%x\n", pd_entry);
     if (!(pd_entry & 0x1)) {
         printf("Page directory entry not present for 0x%x\n", vaddr);
         return;
-    }
+    } 
 
-    
+    uint32_t* page_table = (uint32_t*)(0xFFC00000 + (pdi * 0x1000));
 
-    uint32_t* page_table = (uint32_t*)(pd_entry & 0xFFFFF000);
     uint32_t pt_entry = page_table[pti];
     printf("Here2");
     if (pt_entry & 0x1) {
@@ -102,6 +91,63 @@ void dump_page_table_for(uint32_t vaddr) {
         printf("Page table entry not present for 0x%x\n", vaddr);
     }
 }
+
+// void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
+    
+//     for (uint32_t i = 0; i < num_pages; ++i) {
+//         uint32_t virt_addr = stack_top - (i + 1) * FRAME_SIZE;
+
+//         uint32_t frame = first_free_frame();
+//         if (frame == (uint32_t)-1) {
+//             printf("No free frame for user stack at 0x%x\n", virt_addr);
+//             return;
+//         }
+
+//         set_frame(frame);
+//         uint32_t phys = frame * FRAME_SIZE;
+//         map_page(virt_addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+//         printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
+//     }
+// }
+
+//slightly better code
+// void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
+    
+//     uint32_t stack_bottom = stack_top - num_pages * FRAME_SIZE;
+//     for (uint32_t i = 0; i < num_pages; ++i) {
+//         uint32_t virt_addr = stack_bottom + i * FRAME_SIZE;
+
+//         uint32_t frame = first_free_frame();
+//         if (frame == (uint32_t)-1) {
+//             printf("No free frame for user stack at 0x%x\n", virt_addr);
+//             return;
+//         }
+
+//         set_frame(frame);
+//         uint32_t phys = frame * FRAME_SIZE;
+//         map_page(virt_addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+//         printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
+//     }
+// }
+
+void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
+    for (uint32_t i = 0; i < num_pages; ++i) {
+        uint32_t virt_addr = stack_top - i * FRAME_SIZE;
+
+        uint32_t frame = first_free_frame();
+        if (frame == (uint32_t)-1) {
+            printf("No free frame for user stack at 0x%x\n", virt_addr);
+            return;
+        }
+
+        set_frame(frame);
+        uint32_t phys = frame * FRAME_SIZE;
+        map_page(virt_addr, phys, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+        printf("Mapping User Stack VA 0x%x to PA 0x%x\n", virt_addr, phys);
+    }
+}
+
+
 
 
 void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
@@ -117,20 +163,18 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
     init_threading();
 	ramfs_init();
 
+    
     map_user_program();
-    map_user_stack();
-    alloc_user_stack(USER_STACK_TOP, 4);  // 1 page = 4 KB stack
-
-
-    extern void switch_to_user_mode();
+    printf("Here");
+    map_user_stack(USER_STACK_TOP, USER_STACK_PAGES);
+    //alloc_user_stack(USER_STACK_TOP, 4);  // 1 page = 4 KB stack
+    
     extern void user_mode_entry();
-
     printf("About to jump to 0x%x\n", (uint32_t)user_mode_entry);
 
-    dump_page_table_for((uint32_t)user_mode_entry);  // You can write this to dump entries
-
-    jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
-    switch_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
+    
+    //dump_page_table_for(0x101d40);
+    dump_page_table_for(USER_STACK_TOP);
+    //jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
 	asm volatile ("sti");
-
 }

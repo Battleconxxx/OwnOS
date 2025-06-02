@@ -13,9 +13,13 @@ struct idt_entry idt[256];
 struct idt_ptr idtp;
 
 extern void idt_load(); // Assembly function to load IDT
-extern void isr14();
+
 extern void isr0();
+extern void isr8();
+extern void isr13();
+extern void isr14();
 extern void isr32();
+
 // extern void yield(void);
 
 static thread_t* current_thread = 0;
@@ -56,8 +60,11 @@ void init_interrupts() {
     pic_remap();
     idt_install();
     idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E); // Divide-by-zero
+    idt_set_gate(0, (uint32_t)isr8, 0x08, 0x8E); // Divide-by-zero
     idt_set_gate(14, (uint32_t)isr14, 0x08, 0x8E); // Page fault
     idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E); // Timer
+    idt_set_gate(13, (uint32_t)isr13, 0x08, 0x8E); // gpf
+
 
     pit_init(PIT_DEFAULT_HZ);
     idt_load();
@@ -105,3 +112,21 @@ void pit_init(uint32_t frequency) {
     outb(PIT_CHANNEL0, (divisor >> 8) & 0xFF); // High byte
 }
 
+void gpf_handler(uint32_t error_code, uint32_t int_no) {
+    printf("General Protection Fault (int %d), error code: 0x%x\n", int_no, error_code);
+    while (1) { asm("hlt"); }
+}
+
+void fault_handler(uint32_t int_no, uint32_t error_code) {
+    printf("Unhandled exception %d, error: 0x%x\n", int_no, error_code);
+    asm volatile("hlt");
+}
+
+void double_fault_handler(uint32_t error_code, uint32_t int_no) {
+    // Double Fault usually has error_code = 0 (CPU pushes 0)
+    printf("Double Fault Exception (int %d), error code: 0x%x\n", int_no, error_code);
+    // Halt the system since this is critical
+    while (1) {
+        asm("hlt");
+    }
+}
