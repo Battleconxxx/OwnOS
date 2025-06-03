@@ -20,6 +20,9 @@ static uint32_t heap_end = KERNEL_HEAP_START + KERNEL_HEAP_SIZE;
 uint8_t kernel_stack[KERNEL_STACK_SIZE] __attribute__((aligned(16)));
 uint8_t user_stack[USER_STACK_SIZE] __attribute__((aligned(16)));
 
+extern uint32_t _start;
+extern uint32_t __kernel_end;
+
 
 void* kmalloc(size_t size) {
     // Align size to 4 bytes
@@ -89,6 +92,10 @@ void init_memory() {
     }
 }
 
+#define KERNEL_VIRTUAL_BASE 0xC0000000   // if you map kernel at high memory
+#define KERNEL_PHYSICAL_BASE 0x00100000  // physical address where kernel is loaded
+
+
 
 void init_paging() {
     // Clear page directory
@@ -112,7 +119,7 @@ void init_paging() {
     page_directory[768] = ((uint32_t)kernel_table) | PAGE_PRESENT | PAGE_RW;
 
     //To find physical address of page directory
-    uint32_t phys_addr_of_page_directory = (uint32_t)page_directory - 0xC0000000;
+    uint32_t phys_addr_of_page_directory = (uint32_t)page_directory - KERNEL_VIRTUAL_BASE + KERNEL_PHYSICAL_BASE;
     page_directory[1023] = phys_addr_of_page_directory | PAGE_PRESENT | PAGE_RW;
 
 

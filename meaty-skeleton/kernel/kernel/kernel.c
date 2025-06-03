@@ -113,29 +113,6 @@ void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
     }
 }
 
-uint32_t get_kernel_phys_base(multiboot_info_t* mbi) {
-    if (!(mbi->flags & (1 << 5))) {
-        printf("No ELF section headers in multiboot info\n");
-        return 0;
-    }
-    
-    multiboot_elf_section_header_table_t* elf_sec = &mbi->elf_sec;
-
-    uint32_t min_addr = 0xFFFFFFFF;
-    uint32_t max_addr = 0;
-
-    for (uint32_t i = 0; i < elf_sec->num; i++) {
-        multiboot_elf_section_header_t* sec = (multiboot_elf_section_header_t*)(elf_sec->addr + i * elf_sec->size);
-        if (sec->addr < min_addr) min_addr = sec->addr;
-        if (sec->addr + sec->size > max_addr) max_addr = sec->addr + sec->size;
-    }
-
-    printf("Kernel ELF sections range: 0x%x - 0x%x\n", min_addr, max_addr);
-
-    return min_addr; // This is your kernel physical base address
-}
-
-
 
 void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 	gdt_install();
@@ -159,9 +136,6 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
     extern void user_mode_entry();
     printf("About to jump to 0x%x\n", (uint32_t)user_mode_entry);
 
-    
-    //dump_page_table_for(0x101d40);
-    dump_page_table_for(0xBFFFF000);
-    //jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
+    jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
 	asm volatile ("sti");
 }

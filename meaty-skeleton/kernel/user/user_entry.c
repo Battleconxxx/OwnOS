@@ -16,6 +16,7 @@ int write(const char* msg) {
 
 void user_mode_entry() {
     
+    printf("In user mode now");
     while (1) {
         write("in usermode now");
         // You can test syscalls, faults, or just halt here
