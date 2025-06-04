@@ -98,7 +98,7 @@ void dump_page_table_for(uint32_t vaddr) {
 
 void map_user_stack(uint32_t stack_top, uint32_t num_pages) {
     for (uint32_t i = 0; i < num_pages; ++i) {
-        uint32_t virt_addr = stack_top - i * FRAME_SIZE;
+        uint32_t virt_addr = stack_top - (i + 1) * FRAME_SIZE;
 
         uint32_t frame = first_free_frame();
         if (frame == (uint32_t)-1) {
@@ -124,7 +124,7 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 	init_paging();
     init_kernel_heap_mapping();
 	init_interrupts();
-    init_threading();
+    //init_threading();
 	ramfs_init();
 
     
@@ -133,6 +133,7 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
     printf("User stack mapped");
     //alloc_user_stack(USER_STACK_TOP, 4);  // 1 page = 4 KB stack
     
+    printf("Time truly does change");
     extern void user_mode_entry();
     printf("About to jump to 0x%x\n", (uint32_t)user_mode_entry);
 

@@ -42,7 +42,7 @@ extern uint8_t kernel_stack[KERNEL_STACK_SIZE];
 #define USER_STACK_TOP  0xBFFFF000
 #define USER_STACK_SIZE 0x1000
 #define USER_STACK_BASE (USER_STACK_TOP - USER_STACK_SIZE)
-#define USER_STACK_PAGES    4                        // 4 pages = 16 KB
+#define USER_STACK_PAGES    8                      // 4 pages = 16 KB
 
 //Page fault fix
 #define PT_VIRT_BASE  0xF0000000

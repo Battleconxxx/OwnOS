@@ -8,6 +8,7 @@
         "tss.h": "c",
         "gdt.h": "c",
         "user_entry.h": "c",
-        "vga.h": "c"
+        "vga.h": "c",
+        "interrupts.h": "c"
     }
 }

@@ -72,3 +72,28 @@ isr32:
     popa                   ; restore registers from new stack
     sti
     iret
+
+
+global isr80
+extern syscall_isr_handler
+
+[bits 32]
+isr80:
+    ; Save general-purpose registers
+    pusha
+
+    ; Push a dummy error code to match the format of other ISRs (if needed)
+    push 0
+
+    ; Push interrupt number (0x80)
+    push 0x80
+
+    ; Call the C handler
+    call syscall_isr_handler
+
+    ; Remove pushed interrupt number and error code
+    add esp, 8
+
+    ; Restore registers and return from interrupt
+    popa
+    iretd

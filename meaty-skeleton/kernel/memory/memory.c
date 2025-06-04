@@ -20,9 +20,6 @@ static uint32_t heap_end = KERNEL_HEAP_START + KERNEL_HEAP_SIZE;
 uint8_t kernel_stack[KERNEL_STACK_SIZE] __attribute__((aligned(16)));
 uint8_t user_stack[USER_STACK_SIZE] __attribute__((aligned(16)));
 
-extern uint32_t _start;
-extern uint32_t __kernel_end;
-
 
 void* kmalloc(size_t size) {
     // Align size to 4 bytes
@@ -106,9 +103,9 @@ void init_paging() {
 
     for (int table = 0; table < 4; table++) {
         for (int i = 0; i < 1024; i++) {
-            identity_tables[table][i] = ((table * 0x400000) + (i * 0x1000)) | PAGE_PRESENT | PAGE_RW;
+            identity_tables[table][i] = ((table * 0x400000) + (i * 0x1000)) | PAGE_PRESENT | PAGE_RW | PAGE_USER;
         }
-        page_directory[table] = ((uint32_t)identity_tables[table]) | PAGE_PRESENT | PAGE_RW;
+        page_directory[table] = ((uint32_t)identity_tables[table]) | PAGE_PRESENT | PAGE_RW | PAGE_USER;
     }
 
     // Map kernel higher-half: 0xC0000000 - 0xC03FFFFF (maps 0x00100000 physical)
@@ -120,7 +117,7 @@ void init_paging() {
 
     //To find physical address of page directory
     uint32_t phys_addr_of_page_directory = (uint32_t)page_directory - KERNEL_VIRTUAL_BASE + KERNEL_PHYSICAL_BASE;
-    page_directory[1023] = phys_addr_of_page_directory | PAGE_PRESENT | PAGE_RW;
+    page_directory[1023] = phys_addr_of_page_directory | PAGE_PRESENT | PAGE_RW | PAGE_USER;
 
 
 
@@ -238,8 +235,15 @@ void init_kernel_heap_mapping() {
 #define KERNEL_START 0x00100000
 #define KERNEL_END   0x00200000  // adjust based on your kernel size
 
+extern uint32_t _start;
+extern uint32_t __kernel_end;
+
 
 void mark_usable_frames() {
+
+    uint32_t kernel_start_addr = (uint32_t)&_start;
+    uint32_t kernel_end_addr = (uint32_t)&__kernel_end;
+
     for (int i = 0; i < usable_region_count; i++) {
         uint32_t base = usable_regions[i].base;
         uint32_t length = usable_regions[i].length;
@@ -250,7 +254,7 @@ void mark_usable_frames() {
 
             uint32_t addr = frame * FRAME_SIZE;
 
-            if (addr >= KERNEL_START && addr < heap_end) continue;
+            if (addr >= kernel_start_addr && addr < heap_end) continue;
             clear_frame(frame); // Mark as free
         }
     }

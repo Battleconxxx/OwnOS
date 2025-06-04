@@ -16,6 +16,14 @@ struct idt_ptr {
     uint32_t base;
 } __attribute__((packed));
 
+
+typedef struct registers {
+    uint32_t ds;                  // Data segment selector
+    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax; // Pushed by pusha
+    uint32_t int_no, err_code;    // Interrupt number and error code
+    uint32_t eip, cs, eflags, useresp, ss; // Pushed by CPU
+} registers_t;
+
 extern struct idt_ptr idtp;
 
 void idt_set_gate(int num, uint32_t base, uint16_t sel, uint8_t flags);
