@@ -22,7 +22,7 @@ static struct gdt_ptr gp;
 
 extern void gdt_flush(uint32_t);
 
-extern uint8_t kernel_stack[KERNEL_STACK_SIZE];
+// extern uint8_t kernel_stack[KERNEL_STACK_SIZE];
 
 
 void gdt_set_gate(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran) {

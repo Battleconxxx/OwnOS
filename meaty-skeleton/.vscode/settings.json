@@ -9,6 +9,7 @@
         "gdt.h": "c",
         "user_entry.h": "c",
         "vga.h": "c",
-        "interrupts.h": "c"
+        "interrupts.h": "c",
+        "syscall.h": "c"
     }
 }

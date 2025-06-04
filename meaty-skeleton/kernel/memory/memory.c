@@ -17,7 +17,6 @@ static uint32_t heap_next = KERNEL_HEAP_START;
 static uint32_t heap_end = KERNEL_HEAP_START + KERNEL_HEAP_SIZE;
 
 
-uint8_t kernel_stack[KERNEL_STACK_SIZE] __attribute__((aligned(16)));
 uint8_t user_stack[USER_STACK_SIZE] __attribute__((aligned(16)));
 
 

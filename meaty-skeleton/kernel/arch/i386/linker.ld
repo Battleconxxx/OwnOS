@@ -39,6 +39,12 @@ SECTIONS
 		*(.bss)
 	}
 
+	.stack ALIGN(16) : {
+    PROVIDE(kernel_stack = .);
+    . = . + 0x1000;   /* 4KB stack */
+    PROVIDE(kernel_stack_top = .);
+  }
+
 	/* Add this section to hold the embedded ELF binary */
     .elfdata : ALIGN(4K)
     {

@@ -37,6 +37,30 @@ void map_user_program() {
 }
 
 
+// void jump_to_user_mode(uint32_t entry, uint32_t user_stack_top) {
+//     asm volatile (
+//         "cli\n"
+//         "mov $0x23, %%ax\n"     // User data segment selector (DPL=3)
+//         "mov %%ax, %%ds\n"
+//         "mov %%ax, %%es\n"
+//         "mov %%ax, %%fs\n"
+//         "mov %%ax, %%gs\n"
+
+//         "mov %[user_stack], %%eax\n"
+//         "pushl $0x23\n"         // User data segment selector
+//         "pushl %%eax\n"         // Stack pointer
+//         "pushf\n"               // Push EFLAGS
+//         "pushl $0x1B\n"         // User code segment selector (DPL=3)
+//         "push %[entry_point]\n" // Entry point of user code
+//         "iret\n"
+//         :
+//         : [entry_point] "r" (entry),
+//           [user_stack] "r" (SAFE_USER_STACK_TOP)
+//         : "eax"
+//     );
+// }
+
+
 void jump_to_user_mode(uint32_t entry, uint32_t user_stack_top) {
     asm volatile (
         "cli\n"
@@ -46,19 +70,20 @@ void jump_to_user_mode(uint32_t entry, uint32_t user_stack_top) {
         "mov %%ax, %%fs\n"
         "mov %%ax, %%gs\n"
 
-        "mov %[user_stack], %%eax\n"
-        "pushl $0x23\n"         // User data segment selector
-        "pushl %%eax\n"         // Stack pointer
-        "pushf\n"               // Push EFLAGS
-        "pushl $0x1B\n"         // User code segment selector (DPL=3)
-        "push %[entry_point]\n" // Entry point of user code
+        "pushl $0x23\n"         // SS = user data selector
+        "push %[user_stack]\n" // ESP = top of user stack
+
+        "pushl $0x200\n"        // EFLAGS with IF = 1
+        "pushl $0x1B\n"         // CS = user code selector
+        "push %[entry_point]\n" // EIP = entry point
         "iret\n"
         :
         : [entry_point] "r" (entry),
-          [user_stack] "r" (USER_STACK_TOP)
-        : "eax"
+          [user_stack] "r" (user_stack_top)
+        : "memory"
     );
 }
+
 
 
 #define PAGE_DIR_INDEX(x) (((x) >> 22) & 0x3FF)
@@ -129,14 +154,12 @@ void kernel_main(uint32_t magic, multiboot_info_t* mbi) {
 
     
     map_user_program();
-    map_user_stack(USER_STACK_TOP, USER_STACK_PAGES);
+    map_user_stack(SAFE_USER_STACK_TOP, USER_STACK_PAGES);
     printf("User stack mapped");
-    //alloc_user_stack(USER_STACK_TOP, 4);  // 1 page = 4 KB stack
     
-    printf("Time truly does change");
     extern void user_mode_entry();
     printf("About to jump to 0x%x\n", (uint32_t)user_mode_entry);
 
-    jump_to_user_mode((uint32_t)user_mode_entry, USER_STACK_TOP);
+    jump_to_user_mode((uint32_t)user_mode_entry, SAFE_USER_STACK_TOP);
 	asm volatile ("sti");
 }
