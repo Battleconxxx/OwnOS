@@ -32,26 +32,41 @@ extern gpf_handler
 
 isr13:
     cli
-    pusha
-    mov eax, [esp + 36]    ; error code pushed by CPU
-    push eax               ; error code
-    push dword 13          ; interrupt number 13
+    push ds
+    push es
+    push fs
+    push gs
+
+    pusha                   ; Push general-purpose registers
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    push dword [esp + 44]   ; Push error code (it's at esp+44 after pusha+segment regs)
+    push dword 13           ; Push interrupt number
     call gpf_handler
-    add esp, 8
+
+    add esp, 8              ; Clean up pushed int_no and error_code
     popa
+    pop gs
+    pop fs
+    pop es
+    pop ds
     iret
+
 
 
 global isr14
 extern page_fault_handler
-
 isr14:
     cli
     pusha
-    mov eax, cr2           ; faulting address
-    push eax               ; faulting address
-    mov eax, [esp + 36]    ; error code
-    push eax               ; error code
+    mov eax, [esp + 32]    ; Error code (adjusted for pusha)
+    push eax
+    mov eax, cr2           ; Faulting address
+    push eax
     call page_fault_handler
     add esp, 8
     popa
@@ -97,3 +112,17 @@ isr80:
     ; Restore registers and return from interrupt
     popa
     iretd
+
+
+global default_isr
+extern fault_handler
+
+default_isr:
+    cli
+    pusha
+    push dword 0          ; Dummy error code
+    push eax              ; Push interrupt number (caller sets %eax)
+    call fault_handler
+    add esp, 8
+    popa
+    iret

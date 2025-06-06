@@ -22,6 +22,10 @@
                     "description": "Set Disassembly Flavor to Intel",
                     "text": "-gdb-set disassembly-flavor intel",
                     "ignoreFailures": true
+                },
+                {
+                    "text": "break *0x10901a",
+                    "description": "Break at faulting instruction"
                 }
             ]
         }

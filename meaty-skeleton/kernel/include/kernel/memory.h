@@ -42,7 +42,6 @@ extern uint8_t kernel_stack_top;
 
 #define USER_STACK_TOP  0xBFFFF000
 #define SAFE_USER_STACK_TOP (USER_STACK_TOP - 0x100)  // Leave some headroom
-#define USER_STACK_SIZE 0x1000
 #define USER_STACK_BASE (USER_STACK_TOP - USER_STACK_SIZE)
 #define USER_STACK_PAGES    8                      // 4 pages = 16 KB
 

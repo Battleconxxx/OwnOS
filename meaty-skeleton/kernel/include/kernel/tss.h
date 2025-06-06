@@ -33,7 +33,6 @@ struct tss_entry {
     uint16_t iomap_base;
 } __attribute__((packed));
 
-static struct tss_entry tss_entry;
 
 void write_tss(int num, uint16_t ss0, uint32_t esp0);
 void tss_flush();

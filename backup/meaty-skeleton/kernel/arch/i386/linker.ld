@@ -9,6 +9,7 @@ SECTIONS
 	/* Begin putting sections at 1 MiB, a conventional place for kernels to be
 	   loaded at by the bootloader. */
 	. = 1M;
+	/*. = 0xC0000000;*/
 
 	/* First put the multiboot header, as it is required to be put very early
 	   early in the image or the bootloader won't recognize the file format.
@@ -37,6 +38,22 @@ SECTIONS
 		*(COMMON)
 		*(.bss)
 	}
+
+	.stack ALIGN(16) : {
+    PROVIDE(kernel_stack = .);
+    . = . + 0x1000;   /* 4KB stack */
+    PROVIDE(kernel_stack_top = .);
+  }
+
+	/* Add this section to hold the embedded ELF binary */
+    .elfdata : ALIGN(4K)
+    {
+        __elf_start = .;
+        KEEP(*(.elfdata))
+        __elf_end = .;
+    }
+
+	__kernel_end = .;
 
 	/* The compiler may produce other sections, put them in the proper place in
 	   in this file, if you'd like to include them in the final kernel. */

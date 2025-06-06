@@ -1,0 +1,5 @@
+qemu-system-i386 -kernel kernel/kernel.elf -gdb tcp::1234 -S -serial stdio -no-reboot -d int
+
+qemu-system-i386 -kernel kernel/kernel.elf -s -S
+
+objdump -D kernel.elf --start-address=0x001021b0 --stop-address=0x001021c0

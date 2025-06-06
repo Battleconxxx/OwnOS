@@ -2,7 +2,7 @@ DEFAULT_HOST!=../default-host.sh
 HOST?=$(DEFAULT_HOST)
 HOSTARCH!=../target-triplet-to-arch.sh $(HOST)
 
-CFLAGS?=-m32 -O2 -g
+CFLAGS?=-m32 -O0 -g
 CPPFLAGS?=
 LDFLAGS?=
 LIBS?=

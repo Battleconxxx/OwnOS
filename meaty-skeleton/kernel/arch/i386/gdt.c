@@ -48,7 +48,9 @@ void gdt_install(void) {
     gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF); // User data (ring 3, read/write)
     //gdt_set_gate(5, (uint32_t)&tss_entry, sizeof(tss_entry), 0x89, 0x40);
 
-    write_tss(5, 0x10, (uint32_t)(kernel_stack + sizeof(kernel_stack)));
+    // write_tss(5, 0x10, (uint32_t)(kernel_stack + KERNEL_STACK_SIZE));
+    map_page((uint32_t)&kernel_stack, first_free_frame() * 0x1000, PAGE_PRESENT | PAGE_RW);
+    write_tss(5, 0x10, (uint32_t)&kernel_stack_top);
    
 
     gdt_flush((uint32_t)&gp);

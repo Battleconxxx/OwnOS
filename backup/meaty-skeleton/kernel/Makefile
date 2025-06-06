@@ -43,7 +43,13 @@ interrupts/isr.o \
 FS/fs.o \
 arch/i386/gdt.o \
 arch/i386/gdt_flush.o \
-thread/scheduler.o
+thread/scheduler.o \
+loader/elf_loader.o \
+arch/i386/tss.o \
+arch/i386/tss_flush.o \
+arch/i386/switch_to_user_mode.o \
+user/user_entry.o \
+syscall/syscall.o \
 
 OBJS=\
 $(ARCHDIR)/crti.o \
@@ -66,11 +72,18 @@ $(ARCHDIR)/crtn.o
 .PHONY: all clean install install-headers install-kernel
 .SUFFIXES: .o .c .S
 
-all: myos.kernel
+# all: myos.kernel
 
-myos.kernel: $(OBJS) $(ARCHDIR)/linker.ld
+# myos.kernel: $(OBJS) $(ARCHDIR)/linker.ld
+# 	$(CC) -T $(ARCHDIR)/linker.ld -o $@ $(CFLAGS) $(LINK_LIST)
+# 	grub-file --is-x86-multiboot myos.kernel
+
+all: kernel.elf
+
+kernel.elf: $(OBJS) $(ARCHDIR)/linker.ld
 	$(CC) -T $(ARCHDIR)/linker.ld -o $@ $(CFLAGS) $(LINK_LIST)
-	grub-file --is-x86-multiboot myos.kernel
+	grub-file --is-x86-multiboot kernel.elf
+
 
 $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 	OBJ=`$(CC) $(CFLAGS) $(LDFLAGS) -print-file-name=$(@F)` && cp "$$OBJ" $@
@@ -81,11 +94,20 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 .S.o:
 	$(CC) -m32 -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
 
+
 #gdt stuff
 arch/i386/gdt.o: arch/i386/gdt.c include/kernel/gdt.h
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
 
 arch/i386/gdt_flush.o: arch/i386/gdt.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
+#tss stuff
+arch/i386/tss_flush.o: arch/i386/tss_flush.asm
+	$(AS) $(ASFLAGS) $< -o $@
+
+#switch to user mode
+arch/i386/switch_to_user_mode.o: arch/i386/switch_to_user_mode.asm
 	$(AS) $(ASFLAGS) $< -o $@
 
 #interrupts compiling
@@ -106,8 +128,12 @@ install-headers:
 	mkdir -p $(DESTDIR)$(INCLUDEDIR)
 	cp -R --preserve=timestamps include/. $(DESTDIR)$(INCLUDEDIR)/.
 
-install-kernel: myos.kernel
+# install-kernel: myos.kernel
+# 	mkdir -p $(DESTDIR)$(BOOTDIR)
+# 	cp myos.kernel $(DESTDIR)$(BOOTDIR)
+
+install-kernel: kernel.elf
 	mkdir -p $(DESTDIR)$(BOOTDIR)
-	cp myos.kernel $(DESTDIR)$(BOOTDIR)
+	cp kernel.elf $(DESTDIR)$(BOOTDIR)
 
 -include $(OBJS:.o=.d)

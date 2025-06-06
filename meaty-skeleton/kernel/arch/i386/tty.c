@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include <kernel/tty.h>
+#include <kernel/memory.h>
 
 #include "vga.h"
 
@@ -16,7 +17,12 @@ static size_t terminal_column;
 static uint8_t terminal_color;
 static uint16_t* terminal_buffer;
 
+void map_vga_buffer(void) {
+    map_page((void *)0xB8000, 0xB8000, PAGE_PRESENT | PAGE_RW | PAGE_USER);
+}
+
 void terminal_initialize(void) {
+    map_vga_buffer();
 	terminal_row = 0;
 	terminal_column = 0;
 	terminal_color = vga_entry_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
@@ -34,6 +40,10 @@ void terminal_setcolor(uint8_t color) {
 }
 
 void terminal_putentryat(unsigned char c, uint8_t color, size_t x, size_t y) {
+    if (terminal_buffer != (uint16_t *)0xB8000 || x >= VGA_WIDTH || y >= VGA_HEIGHT) {
+        printf("Invalid terminal write: buffer=0x%x, x=%zu, y=%zu\n", terminal_buffer, x, y);
+        for(;;);
+    }
 	const size_t index = y * VGA_WIDTH + x;
 	terminal_buffer[index] = vga_entry(c, color);
 }

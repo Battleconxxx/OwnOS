@@ -21,11 +21,12 @@ extern void isr13();
 extern void isr14();
 extern void isr32();
 extern void isr80();
+extern void default_isr();
 
 // extern void yield(void);
 
 static thread_t* current_thread = 0;
-static thread_t* thread_list = 0;
+// static thread_t* thread_list = 0;
 
 void idt_set_gate(int num, uint32_t base, uint16_t sel, uint8_t flags) {
     idt[num].base_low = base & 0xFFFF;
@@ -69,7 +70,7 @@ void idt_install() {
     idtp.base = (uint32_t)&idt;
 
     for (int i = 0; i < 256; i++) {
-        idt_set_gate(i, 0, 0, 0);  // Clear entries
+        idt_set_gate(i, (uint32_t)default_isr, 0x08, 0x8E);
     }    
 }
 
@@ -78,9 +79,9 @@ void init_interrupts() {
     pic_remap();
     idt_install();
     idt_set_gate(0, (uint32_t)isr0, 0x08, 0x8E); // Divide-by-zero
-    idt_set_gate(8, (uint32_t)isr8, 0x08, 0x8E); // Divide-by-zero
+    idt_set_gate(8, (uint32_t)isr8, 0x08, 0x8E); // Double Fault
     idt_set_gate(14, (uint32_t)isr14, 0x08, 0x8E); // Page fault
-    //idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E); // Timer
+    idt_set_gate(32, (uint32_t)isr32, 0x08, 0x8E); // Timer
     idt_set_gate(13, (uint32_t)isr13, 0x08, 0x8E); // gpf
     idt_set_gate(0x80, (uint32_t)isr80, 0x08, 0xEE);  // Interrupt gate, DPL=3 (0xEE)
 
@@ -95,41 +96,43 @@ void init_interrupts() {
 //     return cr2;
 // }
 
-void page_fault_handler(uint32_t error_code, uint32_t fault_addr) {
-    printf("Page fault at 0x%x, error code: 0x%x\n", fault_addr, error_code);
-
-    // uint32_t fault_address = read_cr2();
-
-    // printf("Page fault at 0x%x | error code: 0x%x\n", fault_address, error_code);
-
-    for(;;){}
+void page_fault_handler(uint32_t fault_addr, uint32_t error_code) {
+    asm volatile("cli");
+    uint32_t cr2;
+    asm volatile("mov %%cr2, %0" : "=r"(cr2));
+    // Avoid printf to prevent faults
+    // Print to a fixed memory location or serial port
+    volatile uint32_t *debug = (volatile uint32_t *)0xC0001000; // Adjust to mapped address
+    debug[0] = cr2;
+    debug[1] = error_code;
+    debug[2] = 0xDEADBEEF;
+    for(;;);
 }
 
 
-uint32_t* timer_handler(uint32_t* current_esp) {
-    // Save current esp to current_thread struct
-    if (current_thread) {
-        current_thread->stack_pointer = current_esp;
-    }
+#include <kernel/tty.h>
+#include <kernel/interrupts.h>
 
-    // // Pick next thread (round robin)
-    // if (!current_thread) {
-    //     current_thread = thread_list;
-    // } else if (current_thread->next) {
-    //     current_thread = current_thread->next;
-    // } else {
-    //     current_thread = thread_list;
-    // }
+void timer_handler(uint32_t error_code, uint32_t interrupt_number) {
+    asm volatile("cli"); // Disable interrupts
+    // Acknowledge the interrupt (send EOI to PIC)
+    outb(0x20, 0x20); // EOI to PIC1 (master)
 
-    // // Send EOI to PIC
-    // outb(0x20, 0x20);
+    // Debug output (optional, use with caution to avoid recursion)
+    printf("Timer interrupt (IRQ0) fired, tick %u\n", interrupt_number);
 
-    return current_thread->stack_pointer;
+    // Optionally, increment a system tick counter
+    static uint32_t tick = 0;
+    tick++;
+    volatile uint32_t *debug = (volatile uint32_t *)0xC0001000; // Mapped address
+    debug[3] = tick; // Store tick count
+
+    // Re-enable interrupts (handled by iret in isr32)
 }
 
 void divide_by_zero_handler(uint32_t error_code, uint32_t int_no) {
     printf("Divide by zero error (int %d), error code: 0x%x\n", int_no, error_code);
-    while (1) { asm("hlt"); }
+    for(;;){}
 }
 
 //multithreading stuff
@@ -141,23 +144,23 @@ void pit_init(uint32_t frequency) {
     outb(PIT_CHANNEL0, (divisor >> 8) & 0xFF); // High byte
 }
 
-void gpf_handler(uint32_t error_code, uint32_t int_no) {
-    printf("General Protection Fault (int %d), error code: 0x%x\n", int_no, error_code);
-    while (1) { asm("hlt"); }
+void gpf_handler(registers_t *regs) {
+    printf("\nGPF: int_no=%u err_code=0x%x\n", regs->int_no, regs->err_code);
+    printf("EIP=0x%x CS=0x%x EFLAGS=0x%x\n", regs->eip, regs->cs, regs->eflags);
+    for(;;);
 }
+
 
 void fault_handler(uint32_t int_no, uint32_t error_code) {
     printf("Unhandled exception %d, error: 0x%x\n", int_no, error_code);
-    asm volatile("hlt");
+    for(;;){}
 }
 
 void double_fault_handler(uint32_t error_code, uint32_t int_no) {
     // Double Fault usually has error_code = 0 (CPU pushes 0)
     printf("Double Fault Exception (int %d), error code: 0x%x\n", int_no, error_code);
     // Halt the system since this is critical
-    while (1) {
-        asm("hlt");
-    }
+    for(;;){}
 }
 
 #define MAX_INTERRUPTS 256
